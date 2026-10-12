@@ -9,5 +9,11 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "isomorphic-git": "^1.44.2"
+  },
+  "devDependencies": {
+    "memfs": "^4.80.0"
   }
 }
