@@ -1,0 +1,9 @@
+// TypeScript settings for the website. Covers the React code and the Vite config.
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Lets TypeScript understand Vite extras, like importing a .css file.
+    "types": ["vite/client"]
+  },
+  "include": ["src", "vite.config.ts"]
+}

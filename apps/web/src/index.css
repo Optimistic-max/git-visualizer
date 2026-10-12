@@ -1,0 +1,12 @@
+/* index.css
+   The one global stylesheet. It loads Tailwind and the design tokens,
+   and sets the page background and text from those tokens. */
+
+@import "tailwindcss";
+@import "./design/tokens.css";
+
+body {
+  background-color: var(--color-stage);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+}

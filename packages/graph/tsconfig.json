@@ -1,0 +1,5 @@
+// TypeScript settings for the graph. It uses React (for drawing) but no git code.
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"]
+}
