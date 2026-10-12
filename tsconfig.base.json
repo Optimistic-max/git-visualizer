@@ -1,0 +1,25 @@
+// tsconfig.base.json
+// Shared TypeScript settings. Every package's tsconfig.json starts from this one
+// ("extends"), so all three folders follow the same rules.
+{
+  "compilerOptions": {
+    // Modern JavaScript output. Vite does the real building, TypeScript only checks types.
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    // "bundler" lets us write imports the way Vite understands them (no ".js" endings needed).
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    // Catch as many mistakes as possible.
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    // Each file must make sense on its own (Vite compiles files one at a time).
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    // Only check types. Never write .js files next to the source.
+    "noEmit": true
+  }
+}
