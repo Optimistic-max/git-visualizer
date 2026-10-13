@@ -42,6 +42,7 @@ Animation and interaction rules live in `docs/ANIMATION_DESIGN.md`. Read it befo
 
 v1.5 (in this order): replay, share links, reset, revert, conflict collision animation, rebase.
 Do not build v1.5 features until v1 is shipped. Do design the event format so they can be added without breaking it.
+Later, after v1: skins (see docs/ANIMATION_DESIGN.md). Do not build before v1 ships.
 
 ## Git accuracy rules (this is a teaching tool, so wrong git is a bug)
 
@@ -59,6 +60,7 @@ Do not build v1.5 features until v1 is shipped. Do design the event format so th
 A commit ID depends on author, time and parents. To make the same commands always give the same IDs:
 - Always use one fixed author name and email.
 - Use a fake clock that only counts up (1 second per call). Never call `Date.now()` inside the engine.
+- Always run in UTC: pass `timezoneOffset: 0` with every author and committer.
 - Pass the author, committer and timestamp explicitly on every commit and merge call.
 
 Share links (v1.5) depend on this. Do not break it.

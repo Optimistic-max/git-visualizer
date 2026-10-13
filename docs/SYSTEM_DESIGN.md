@@ -70,9 +70,9 @@ Every event has a `caption` (plain English, also read by screen readers), a `ste
 
 ## 5. Engine (`packages/engine`)
 
-**Practice repo.** isomorphic-git running on lightning-fs (an in-browser filesystem). Two repos live in it: `/local` (the user's) and `/remote` (the pretend GitHub).
+**Practice repo.** isomorphic-git running on lightning-fs (an in-browser filesystem). Two repos live in it: `/local` (the user's) and `/remote.git` (the pretend GitHub).
 
-**Deterministic IDs.** One fixed author, and a fake clock that goes up by one second on every call. The author, committer and timestamp are passed explicitly on every commit and merge. Same commands in, same IDs out. This is required before share links can exist.
+**Deterministic IDs.** One fixed author, a fixed time zone (UTC, `timezoneOffset: 0`), and a fake clock that goes up by one second on every call. The author, committer and timestamp are passed explicitly on every commit and merge. If the time zone is left out, isomorphic-git uses the computer's own, and the same commands give different IDs on different machines. `cherryPick` has no `author` option (it keeps the original author, like real git), so pass `committer` on every `cherryPick`. Without it, it falls back to `Date.now()`. Same commands in, same IDs out. This is required before share links can exist.
 
 **Command parser.** Plain text in, a small object out, for example `{ command: "branch", args: ["feature"] }`. Unknown commands get a friendly "I don't support that yet" instead of an error. The parser is one big `switch`, kept simple on purpose.
 
@@ -80,15 +80,17 @@ Every event has a `caption` (plain English, also read by screen readers), a `ste
 1. Parse the text.
 2. Take the snapshot before.
 3. Run the isomorphic-git calls.
-4. Take the snapshot after.
+4. Take the snapshot after. Trim the newline isomorphic-git adds to the end of every commit message (`"Add login\n"`).
 5. Build the event (type, details, caption, snapshotAfter) and return it.
 
-**Pretend GitHub logic.** isomorphic-git's push and pull expect a real web server, so we write our own small version between `/local` and `/remote`:
+**Pretend GitHub logic.** isomorphic-git's push and pull expect a real web server, so we write our own small version between `/local` and `/remote.git`:
 - `push`: find commits the remote does not have, copy them over, then move the remote branch. Refuse if the remote tip is not an ancestor of your tip (that is the bounce-back).
 - `fetch`: the same in reverse, and it only moves `origin/main`.
 - `pull`: `fetch`, then `merge` of `origin/main` into your branch.
-- `clone`: copy all history from `/remote` into `/local`, set `main` and `origin/main`.
-- Bot teammate: a function that adds a commit to `/remote` on its own (a button or a timer in the lesson), emitting `remote-commit`. This is what creates the bounce-back moment.
+- `clone`: copy all history from `/remote.git` into `/local`, set `main` and `origin/main`.
+- Bot teammate: a function that adds a commit to `/remote.git` on its own (a button or a timer in the lesson), emitting `remote-commit`. This is what creates the bounce-back moment.
+
+How copying works: isomorphic-git has no "copy a commit" function, so we walk the objects ourselves with `readObject` / `writeObject`: the commit, its tree (folders, recursively) and its blobs (file contents), parents first, skipping anything the other side already has. Then `writeRef` moves the branch. `/remote.git` is a bare repo (no working folder, like a real GitHub repo), so it is opened with `gitdir` instead of `dir`.
 
 **Merge preview.** Before running `merge`, work out whether it would be a fast-forward or need a merge commit (find the common ancestor and check whether the target moved). The terminal can show "this will be a fast-forward" before you press enter.
 
@@ -116,7 +118,7 @@ Every event has a `caption` (plain English, also read by screen readers), a `ste
 
 ## 8. Testing
 
-- **Engine (Vitest):** run commands, check the snapshot. Same commands twice must give the same commit ids.
+- **Engine (Vitest):** run commands, check the snapshot. Same commands twice must give the same commit ids. Each test starts from a fresh in-memory filesystem, so no test depends on another.
 - **Against real git:** run the same commands with real `git`, then compare commits, parents and branch pointers with `git log --graph --all` output parsed into data. Never compare hash values or ASCII text.
 - **Graph (Vitest):** `layout()` is pure, so it is easy to test.
 - **Site (Playwright):** type commands, check the caption and labels. Run in Chromium and WebKit (Safari's engine). WebKit matters because Safari treats browser storage differently.
@@ -135,16 +137,19 @@ Designed in now, built later.
 - **Replay:** keep the list of events. Playing, stepping and dragging a slider all feed saved events through the same animation code. Stepping backward animates to the previous snapshot, so nobody has to work out how to undo a merge.
 - **Share links:** save the event list (or just the commands) in the link, with `formatVersion`. No server needed. Works because ids are deterministic.
 - **Other v1.5 items:** reset, revert, conflicts (keep yours / keep theirs / combine both), rebase with ghost dots.
+- **Conflicts, how the engine does them (from the spike):** a merge with `abortOnConflict: false` still throws `MergeConflictError`. Catch it and use its `data` (the conflicting files, each marked `bothModified`, `deleteByUs` or `deleteByTheirs`) for the `conflict` event. isomorphic-git writes `<<<<<<< main` where real git writes `<<<<<<< HEAD`, so rewrite that marker before showing the file. There is no `MERGE_HEAD`, so the engine keeps the "merge in progress" state itself. Once the conflict is resolved, it calls `git.commit` with both parents (`parent: [ours, theirs]`).
 
 ## 11. Risks and the first spike
 
 Spend about one day proving these before building on them:
 
-1. **Copying commits between `/local` and `/remote`.** Confirm isomorphic-git lets us read and write objects directly (`readObject` / `writeObject` or similar). If not, the pretend GitHub needs another approach, and push/pull may slip out of v1.
-2. **Deterministic ids.** Run the same commands twice and compare commit ids.
-3. **`cherryPick`.** Run one to confirm the installed version behaves as the README says (needed for rebase later).
-4. **Conflicts.** Merge with the `abortOnConflict: false` option and see what is written to the files (needed for the conflict feature later).
-5. **WebKit.** Make sure lightning-fs works in Playwright's WebKit.
+Status: 1 to 4 were proven on Oct 12 2026 (isomorphic-git 1.44.2, memfs in Node). The tests and notes are in `packages/engine/src/spike/`. 5 stays open until Playwright is set up.
+
+1. **Copying commits between `/local` and `/remote.git`.** Confirm isomorphic-git lets us read and write objects directly (`readObject` / `writeObject` or similar). If not, the pretend GitHub needs another approach, and push/pull may slip out of v1. **Proven.**
+2. **Deterministic ids.** Run the same commands twice and compare commit ids. **Proven** (needs a fixed time zone, see section 5).
+3. **`cherryPick`.** Run one to confirm the installed version behaves as the README says (needed for rebase later). **Proven.**
+4. **Conflicts.** Merge with the `abortOnConflict: false` option and see what is written to the files (needed for the conflict feature later). **Proven** (see section 10).
+5. **WebKit.** Make sure lightning-fs works in Playwright's WebKit. **Still open.**
 
 ## 12. Build order (no fixed dates)
 
